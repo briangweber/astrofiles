@@ -49,8 +49,8 @@ The `_shared` directory also contains camera specific calibration files (168C fo
 * biases: `masterBias_g<gain>o<offset>.xisf`
 
 Navigate to each target's dated folder and run `astro_ccd`. The script will read from the first FITS file under the Light directory to gather information from the headers. You will be prompted to confirm the values and (optionally) enter a filter used for the session. The script will:
-* Append _SESSION_<sessionDate> to each Light file
-* Append _FILTER_<filterName> to each Light and Flat file (if specified)
+* Append `_SESSION_<sessionDate>` to each Light file
+* Append `_FILTER_<filterName>` to each Light and Flat file (if specified)
 * Create symlinks to your dark library, darkFlat library, and bias library (if appropriate files are found)
 * Create symlinks to the shared flats if present
 * Rename folders from the Ekos convention (Light) to match the Siril convention (lights)
