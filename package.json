@@ -1,0 +1,20 @@
+{
+  "name": "astrofiles",
+  "version": "1.0.0",
+  "description": "Do some basic file management to make life easier",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "brian.g.weber@gmail.com",
+  "license": "ISC",
+  "bin": {
+    "astro": "./index.js",
+    "astro_ccd": "./astroccd.js"
+  },
+  "dependencies": {
+    "fitsjs": "^0.6.6",
+    "get-file-properties": "^1.0.1",
+    "prompt": "^1.2.1"
+  }
+}
