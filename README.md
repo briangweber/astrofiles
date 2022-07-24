@@ -1,5 +1,6 @@
 # Astrofiles #
 
+These scripts were created to streamline renaming and arranging files for astrophotography processing. It is designed to handle the EKos capture naming conventions and convert them for easy use in PixInsight's WeightedBatchPreprocessing script.
 
 ## Installation ##
 In order to use these utilities, install the dependencies:
