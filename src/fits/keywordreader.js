@@ -1,3 +1,4 @@
+/* eslint-disable */
 // This file is based on FITSKeywords.js which has the following copyright notice:
 // ****************************************************************************
 // PixInsight JavaScript Runtime API - PJSR Version 1.0
