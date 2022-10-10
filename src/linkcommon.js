@@ -3,7 +3,7 @@ import path from "path";
 import config from "../config";
 
 export const tryLinkSharedCalibration = (currentDirectoryName, directoryData) => {
-	console.log(config.sharedCalibrationRoot, currentDirectoryName, directoryData);
+	// console.log(config.sharedCalibrationRoot, currentDirectoryName, directoryData);
 	const sharedCalibrationDirectory = path.join(config.sharedCalibrationRoot, currentDirectoryName, directoryData.original);
 	if(!fs.existsSync(sharedCalibrationDirectory)) return;
 

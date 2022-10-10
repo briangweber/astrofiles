@@ -49,3 +49,8 @@ Thumbs.db
 *.wmv
 
 config.js
+
+# Generated Test files
+rejected/
+2022-09-03/
+testsubframeoutput.csv
