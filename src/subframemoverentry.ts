@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import _ from "lodash";
 import fs from "fs";
 import path from "path";
+import glob from "glob-promise";
 import { generateSubframeMoves } from "./subframemover/subframemovegenerator";
 
 const [,,fileName, ...additionalArgs] = process.argv;
@@ -28,24 +30,42 @@ const fileContents = fs.readFileSync(filePath).toString();
 // console.log(fileContents);
 
 const fileMoves = generateSubframeMoves(fileContents);
-// console.log(fileMoves);
+console.log(fileMoves);
 
 if(!fileMoves.length) {
 	console.log("No files to move, exiting!");
 }
 
 const rejectedDirectory = path.join(process.cwd(), "rejected");
+const skippedFiles: string[] = [];
+const moveInstructions = _.compact(fileMoves.map(f => {
+	// Use glob to find the file
+	const [sourcePath] = glob.sync(f.sourcePath);
+
+	if(!sourcePath) {
+		skippedFiles.push(f.sourcePath);
+		return;
+	}
+
+	const destinationPath = path.join(rejectedDirectory, path.basename(sourcePath));
+
+	return { sourcePath, destinationPath };
+}));
+
 if(additionalArgs.find(a => a === "--dry-run")) {
 	console.log("Planned to move:");
-	fileMoves.map(f => console.log(f.sourcePath, " -> ", path.join(rejectedDirectory, f.fileName)));
+	for (const instruction of moveInstructions) {
+		console.log(instruction.sourcePath, " -> ", instruction.destinationPath);
+	}
 } else {
 	!fs.existsSync(rejectedDirectory) && fs.mkdirSync(rejectedDirectory);
-	fileMoves.forEach(f => {
+	moveInstructions.forEach(f => {
 		if(!fs.existsSync(f.sourcePath)) { 
 			console.log("Skipped missing file", f.sourcePath);
 			return;
 		} 
-		fs.renameSync(f.sourcePath, path.join(rejectedDirectory, f.fileName));
-		console.log("Moved: ",f.sourcePath, " -> ", path.join(rejectedDirectory, f.fileName));
+
+		fs.renameSync(f.sourcePath, f.destinationPath);
+		console.log("Moved: ",f.sourcePath, " -> ", path.join(rejectedDirectory, f.destinationPath));
 	});
 }

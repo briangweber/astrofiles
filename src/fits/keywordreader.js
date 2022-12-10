@@ -58,11 +58,17 @@ const possibleLightPaths = ["Light", "lights" ];
 
 module.exports.readKeywords = (basePath) => {
   const fileDirectory = possibleLightPaths.find(p => fs.existsSync(path.join(basePath, p)));
+  if(!fileDirectory) {
+    return [];
+  }
   const filePath = path.join(basePath, fileDirectory);
   const files = fs.readdirSync(filePath);
 
   // console.log(files);
   const fitsFile = files.find(f => path.extname(f) === ".fits");
+  if(!fitsFile) {
+    return [];
+  }
   // console.log(fitsFile);
 
   const buffer = fs.readFileSync(path.join(filePath, fitsFile));

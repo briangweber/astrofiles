@@ -8,12 +8,12 @@ function getSourcePath(fileName: string): string {
 		throw new Error(`File does not match pattern: ${fileName}`);
 	}
 
-	const [, basePath, fileNameNoExt, date, processingMarkers] = matches;
+	const [, , fileNameNoExt, date, processingMarkers] = matches;
 	console.log(matches);
 
-	const sourcePath = processingMarkers ? path.join(basePath, date, "lights", `${fileNameNoExt}.fits`) : fileName;
+	const sourcePath = processingMarkers ? path.join(date, "lights", `${fileNameNoExt}.*`) : fileName;
 
-	return sourcePath;
+	return sourcePath.replace(/\\/g, "/");
 }
 
 export function generateSubframeMoves(csvContents: string): { sourcePath: string, fileName: string }[] {
