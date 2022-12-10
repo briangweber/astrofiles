@@ -23,8 +23,15 @@ const doTheAsyncThings = async () => {
 	const keywordOffset = getNumericKeyword("OFFSET", fitsKeywords);
 	const keywordExposureTime = getNumericKeyword("EXPTIME", fitsKeywords);
 	const keywordTemperature = getNumericKeyword("CCD-TEMP", fitsKeywords, true);
+	const keywordFilter = fitsKeywords.find(k => k.keywordName === "FILTER")?.keywordValue;
 
-	let { camera, exposureTime, filter } = await prompt.get({ properties: { exposureTime: { default: keywordExposureTime }, filter: {}, camera: { description: "Camera", default: defaultCamera }}});
+	let { camera, exposureTime, filter } = await prompt.get({ 
+		properties: { 
+			exposureTime: { default: keywordExposureTime }, 
+			filter: { default: keywordFilter }, 
+			camera: { description: "Camera", default: defaultCamera }
+		}
+	});
 
 	const {defaultGain, defaultOffset, defaultTemperature, filters } = config.cameras[camera];
 	let { gain, offset, temperature } = await prompt.get({ 
@@ -73,8 +80,8 @@ const doTheAsyncThings = async () => {
 
 		if(fs.existsSync(directoryData.new)) {
 			const files = fs.readdirSync(directoryData.new);
-			let directory = `.\\${directoryData.new}`;
-			console.log(directory);
+			// let directory = `.\\${directoryData.new}`;
+			// console.log(directory);
 			for(let fileName of files) {
 				let newFileName = fileName;
 				const extension = newFileName.split(".").pop();
@@ -89,12 +96,16 @@ const doTheAsyncThings = async () => {
 					console.log(newFileName);
 				}
 
+				newFileName = newFileName.replace(/'/g, "");
+
 				if(newFileName !== fileName) {
 					const directoryOfFile = path.join(currentWorkingDirectory, directoryData.new);
 					fs.renameSync(path.join(directoryOfFile, fileName), path.join(directoryOfFile, newFileName));
 					fileName = newFileName;
 				}
 			}
+		} else {
+			console.log("No folder found for", directoryData.new);
 		}
 	}
 };
