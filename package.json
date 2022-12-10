@@ -13,8 +13,7 @@
   "bin": {
     "astro": "./dist/src/index.js",
     "astro_ccd": "./dist/src/astroccd.js",
-    "subframe_move": "./dist/src/subframemoverentry.js",
-    "astro_summary": "./dist/src/summary/astrosummary.js"
+    "subframe_move": "./dist/src/subframemoverentry.js"
   },
   "dependencies": {
     "csv-parse": "^5.3.0",
