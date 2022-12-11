@@ -4,6 +4,7 @@ import _ from "lodash";
 import fs from "fs";
 import path from "path";
 import { getNumericKeyword, readKeywords } from "../fits/keywordreader";
+import { getMetadataFromFile } from "../filemetadata";
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
 
@@ -40,13 +41,8 @@ const doAsyncThings = async () => {
 				continue;
 			}
 
-			const keywords = readKeywords(path.join(currentWorkingDirectory, directory, dateDirectory));
-			const filter = keywords.find(k => k.keywordName === "FILTER")?.keywordValue || /.*FILTER_(.*?)(?:_|\.).*/.exec(lightFile)?.[1];
-			const keywordExposureTime = getNumericKeyword("EXPTIME", keywords, true) ;
-			const fileNameExposureTime = /.*_([0-9.]*)(?:s|_secs| s)_.*/ig.exec(lightFile)?.[1];
-			const exposureTime = keywordExposureTime || parseInt(fileNameExposureTime || "-1");
-			const sensorTemperature = getNumericKeyword("CCD-TEMP", keywords, true);
-			sessions.push({ date: dateDirectory, exposureTime, filter: filter || "None", sensorTemperature, count: lightFiles.length });
+			const metadata = getMetadataFromFile(path.join(currentWorkingDirectory, directory, dateDirectory, lightDirectory, lightFile));
+			sessions.push({ date: dateDirectory, exposureTime: metadata.exposureTime || -1, filter: metadata.filter || "None", sensorTemperature: metadata.temperature, count: lightFiles.length });
 			// console.log(`${directory}--${dateDirectory}: ${exposureTime}, ${filter}`);
 		}
 
