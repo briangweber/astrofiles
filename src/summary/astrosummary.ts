@@ -13,6 +13,12 @@ function getSubdirectories(path: string): string[] {
 	return subdirectories.map(s => s.name);
 } 
 
+function readNotes(folder: string): string | undefined {
+	const notesPath = path.join(folder, "notes.txt");
+	const notes = fs.existsSync(notesPath) ? fs.readFileSync(notesPath, { encoding: "utf-8" }) : undefined;
+	return notes;
+}
+
 const doAsyncThings = async () => {
 	const currentWorkingDirectory = process.cwd();
 	console.log(currentWorkingDirectory);
@@ -22,14 +28,19 @@ const doAsyncThings = async () => {
 	for(const directory of subdirectories) {
 		console.log("Target name:", directory);
 
-		const dateSubdirectories = getSubdirectories(path.join(currentWorkingDirectory, directory)).filter(s => dateFormat.test(s));
+		const targetDirectory = path.join(currentWorkingDirectory, directory);
+		const targetNotes = readNotes(targetDirectory);
+		const dateSubdirectories = getSubdirectories(targetDirectory).filter(s => dateFormat.test(s));
 		if(dateSubdirectories.length === 0) {
 			continue;
 		}
 		// console.log("Found some date directories:", dateSubdirectories.length);
-		const sessions: { date: string, exposureTime: number, sensorTemperature?: number, filter: string, count: number }[] = []; 
+		const sessions: { date: string, exposureTime: number, sensorTemperature?: number, filter: string, count: number, notes?: string }[] = []; 
 		for(const dateDirectory of dateSubdirectories) {
-			const datePath = path.join(currentWorkingDirectory, directory, dateDirectory);
+			const datePath = path.join(targetDirectory, dateDirectory);
+
+			const dateNotes = readNotes(datePath);
+
 			const lightDirectory = getSubdirectories(datePath).find(s => /light[s]{0,1}/i.test(s));
 			if(!lightDirectory) {
 				continue;
@@ -42,14 +53,21 @@ const doAsyncThings = async () => {
 			}
 
 			const metadata = getMetadataFromFile(path.join(currentWorkingDirectory, directory, dateDirectory, lightDirectory, lightFile));
-			sessions.push({ date: dateDirectory, exposureTime: metadata.exposureTime || -1, filter: metadata.filter || "None", sensorTemperature: metadata.temperature, count: lightFiles.length });
+			sessions.push({ 
+				date: dateDirectory, 
+				exposureTime: metadata.exposureTime || -1, 
+				filter: metadata.filter || "None", 
+				sensorTemperature: metadata.temperature, 
+				count: lightFiles.length,
+				notes: dateNotes,
+			});
 			// console.log(`${directory}--${dateDirectory}: ${exposureTime}, ${filter}`);
 		}
 
 		const groupedSessions = Object.values(_.groupBy(sessions, s => `${s.exposureTime}:${s.filter}`));
 		const summary = groupedSessions.map(group => ({ exposureTime: group[0].exposureTime, filter: group[0].filter, totalCount: _.sumBy(group, "count") }));
 
-		targets.push({ target: directory, summary, sessions });
+		targets.push({ target: directory, notes: targetNotes, summary, sessions });
 	}
 	console.log(JSON.stringify(targets));
   
