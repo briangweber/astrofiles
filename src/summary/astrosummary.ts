@@ -3,15 +3,10 @@
 import _ from "lodash";
 import fs from "fs";
 import path from "path";
-import { getNumericKeyword, readKeywords } from "../fits/keywordreader";
 import { getMetadataFromFile } from "../filemetadata";
+import { getLightFiles, getSubdirectories } from "../helpers";
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
-
-function getSubdirectories(path: string): string[] {
-	const subdirectories = fs.readdirSync(path, { withFileTypes: true }).filter(e => e.isDirectory());
-	return subdirectories.map(s => s.name);
-} 
 
 function readNotes(folder: string): string | undefined {
 	const notesPath = path.join(folder, "notes.txt");
@@ -21,12 +16,12 @@ function readNotes(folder: string): string | undefined {
 
 const doAsyncThings = async () => {
 	const currentWorkingDirectory = process.cwd();
-	console.log(currentWorkingDirectory);
+	// console.log(currentWorkingDirectory);
 
 	const subdirectories = getSubdirectories(currentWorkingDirectory);
 	const targets: any[] = [];
 	for(const directory of subdirectories) {
-		console.log("Target name:", directory);
+		// console.log("Target name:", directory);
 
 		const targetDirectory = path.join(currentWorkingDirectory, directory);
 		const targetNotes = readNotes(targetDirectory);
@@ -41,18 +36,13 @@ const doAsyncThings = async () => {
 
 			const dateNotes = readNotes(datePath);
 
-			const lightDirectory = getSubdirectories(datePath).find(s => /light[s]{0,1}/i.test(s));
-			if(!lightDirectory) {
-				continue;
-			}
-			const lightFiles =fs.readdirSync(path.join(datePath, lightDirectory), { withFileTypes: true })
-				.filter(f=> f.isFile()); 
-			const lightFile = lightFiles[0]?.name;
-			if(!lightFile) {
+			const { lightFiles, lightDirectory } = getLightFiles(datePath);
+			const lightFile = lightFiles?.[0];
+			if(!lightFile || !lightDirectory) {
 				continue;
 			}
 
-			const metadata = getMetadataFromFile(path.join(currentWorkingDirectory, directory, dateDirectory, lightDirectory, lightFile));
+			const metadata = getMetadataFromFile(path.join(datePath, lightDirectory, lightFile));
 			sessions.push({ 
 				date: dateDirectory, 
 				exposureTime: metadata.exposureTime || -1, 

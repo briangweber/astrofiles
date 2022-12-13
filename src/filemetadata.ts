@@ -8,6 +8,8 @@ export type FileMetadata = {
   temperature?: number;
   filter?: string;
   date?: string;
+	gain?: number;
+	offset?: number;
 }
 
 export function getMetadataFromFile(filePath: string): FileMetadata {
@@ -20,6 +22,8 @@ export function getMetadataFromFile(filePath: string): FileMetadata {
 		exposureTime: getNumericKeyword("EXPTIME", keywords, true),
 		filter: keywords.find(k => k.keywordName === "FILTER")?.keywordValue,
 		temperature: getNumericKeyword("SET-TEMP", keywords, true) || getNumericKeyword("CCD-TEMP", keywords, true),
+		gain: getNumericKeyword("GAIN", keywords, true),
+		offset: getNumericKeyword("OFFSET", keywords, true),
 	};
 
 	const fileMetadata = {
