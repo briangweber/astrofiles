@@ -71,32 +71,11 @@ module.exports.readKeywords = (basePath) => {
   }
   // console.log(fitsFile);
 
-  const buffer = fs.readFileSync(path.join(filePath, fitsFile));
-  let keywordName = "";
-  let offset = 0
+  if(!fitsFile) {
+    return [];
+  }
 
-  const keywords = [];
-  do {
-    const rawKeyword = buffer.subarray(offset, offset + 80).toString();
-    // console.log(rawKeyword)
-    keywordName = rawKeyword.substring(0,8).trim();
-    if(keywordName.toUpperCase() === "END") {
-      break;
-    }
-    let keywordValue = "";
-    // Values will have an = at character 8. Hierarchical values are different and not supported.
-    if(rawKeyword[8] === "=") {
-      let commentIndex = searchCommentSeparator(rawKeyword);
-      commentIndex = commentIndex >= 0 ? commentIndex : 79;
-      // console.log(commentIndex);
-      keywordValue = rawKeyword.substring(10, commentIndex - 1).replace(/'/g, "").trim();
-    }
-
-    keywords.push({ keywordName, keywordValue });
-    offset += 80;
-  } while(offset < buffer.length)
-
-  return keywords;
+  return readKeywordsFromFile(path.join(filePath, fitsFile));
 }
 
 module.exports.getNumericKeyword = (keywordName, keywords, roundToInteger = false) => {
@@ -106,6 +85,38 @@ module.exports.getNumericKeyword = (keywordName, keywords, roundToInteger = fals
   }
 
   return roundToInteger ? Math.round(Number(keyword.keywordValue)) : Number(keyword.keywordValue);
+}
+
+module.exports.readKeywordsFromFile = (filePath) => {
+  if(!filePath || !path.basename(filePath).endsWith(".fits")) {
+    return []
+  }
+  const buffer = fs.readFileSync(filePath);
+  let keywordName = "";
+  let offset = 0;
+
+  const keywords = [];
+  do {
+    const rawKeyword = buffer.subarray(offset, offset + 80).toString();
+    // console.log(rawKeyword)
+    keywordName = rawKeyword.substring(0, 8).trim();
+    if (keywordName.toUpperCase() === "END") {
+      break;
+    }
+    let keywordValue = "";
+    // Values will have an = at character 8. Hierarchical values are different and not supported.
+    if (rawKeyword[8] === "=") {
+      let commentIndex = searchCommentSeparator(rawKeyword);
+      commentIndex = commentIndex >= 0 ? commentIndex : 79;
+      // console.log(commentIndex);
+      keywordValue = rawKeyword.substring(10, commentIndex - 1).replace(/'/g, "").trim();
+    }
+
+    keywords.push({ keywordName, keywordValue });
+    offset += 80;
+  } while (offset < buffer.length);
+
+  return keywords;
 }
 
 function searchCommentSeparator(rawKeyword) {

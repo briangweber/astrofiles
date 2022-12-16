@@ -4,7 +4,8 @@ import fs from "fs";
 import path from "path";
 import prompt from "prompt";
 import config from "../config";
-import { readKeywords, getNumericKeyword } from "./fits/keywordreader";
+import { getMetadataFromFile } from "./filemetadata";
+import { getLightFiles } from "./helpers";
 import { tryLinkSharedCalibration, tryLinkLibraryCalibration } from "./linkcommon";
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
@@ -18,27 +19,24 @@ console.log(currentDirectoryName);
 const doTheAsyncThings = async () => {
 	const defaultCamera = Object.keys(config.cameras)[0];
 
-	const fitsKeywords = readKeywords(currentWorkingDirectory);
-	const keywordGain = getNumericKeyword("GAIN", fitsKeywords);
-	const keywordOffset = getNumericKeyword("OFFSET", fitsKeywords);
-	const keywordExposureTime = getNumericKeyword("EXPTIME", fitsKeywords);
-	const keywordTemperature = getNumericKeyword("CCD-TEMP", fitsKeywords, true);
-	const keywordFilter = fitsKeywords.find(k => k.keywordName === "FILTER")?.keywordValue;
+	const { lightFiles } = getLightFiles(currentWorkingDirectory);
 
+	const metadata = lightFiles?.[0] ? getMetadataFromFile(lightFiles[0]) : {}; 
+	
 	let { camera, exposureTime, filter } = await prompt.get({ 
 		properties: { 
-			exposureTime: { default: keywordExposureTime }, 
-			filter: { default: keywordFilter }, 
+			exposureTime: { default: metadata.exposureTime }, 
+			filter: { default: metadata.filter }, 
 			camera: { description: "Camera", default: defaultCamera }
 		}
 	});
 
-	const {defaultGain, defaultOffset, defaultTemperature, filters } = config.cameras[camera];
+	const { defaultGain, defaultOffset, defaultTemperature, filters } = config.cameras[camera];
 	let { gain, offset, temperature } = await prompt.get({ 
 		properties: { 
-			gain: { default: keywordGain || defaultGain }, 
-			offset: { default: keywordOffset || defaultOffset}, 
-			temperature: { default: keywordTemperature || defaultTemperature } 
+			gain: { default: metadata.gain || defaultGain }, 
+			offset: { default: metadata.offset || defaultOffset}, 
+			temperature: { default: metadata.temperature || defaultTemperature } 
 		}
 	});
 
