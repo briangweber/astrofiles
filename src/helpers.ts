@@ -15,11 +15,11 @@ export function getSubdirectories(path: string): string[] {
 } 
 
 export function getLightFiles(startingPath: string): { lightDirectory?: string, lightFiles: string[] } {
-  const lightDirectory = getSubdirectories(startingPath).find(s => /light[s]{0,1}/i.test(s));
-			if(!lightDirectory) {
-				return { lightFiles: [] };
-			}
-			const lightFiles = fs.readdirSync(path.join(startingPath, lightDirectory), { withFileTypes: true })
-				.filter(f => f.isFile()); 
-			return { lightDirectory, lightFiles: lightFiles.map(f => f.name) };
+	const lightDirectory = getSubdirectories(startingPath).find(s => /light[s]{0,1}/i.test(s));
+	if(!lightDirectory) {
+		return { lightFiles: [] };
+	}
+	const lightFiles = fs.readdirSync(path.join(startingPath, lightDirectory), { withFileTypes: true })
+		.filter(f => f.isFile()); 
+	return { lightDirectory, lightFiles: lightFiles.map(f => f.name) };
 }

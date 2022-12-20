@@ -19,9 +19,9 @@ console.log(currentDirectoryName);
 const doTheAsyncThings = async () => {
 	const defaultCamera = Object.keys(config.cameras)[0];
 
-	const { lightFiles } = getLightFiles(currentWorkingDirectory);
+	const { lightFiles, lightDirectory } = getLightFiles(currentWorkingDirectory);
 
-	const metadata = lightFiles?.[0] ? getMetadataFromFile(lightFiles[0]) : {}; 
+	const metadata = lightFiles?.[0] ? getMetadataFromFile(path.join(lightDirectory, lightFiles[0])) : {}; 
 	
 	let { camera, exposureTime, filter } = await prompt.get({ 
 		properties: { 
