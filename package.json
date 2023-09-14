@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "csv-parse": "^5.3.0",
+    "csv-stringify": "^6.4.2",
     "fitsjs": "^0.6.6",
     "fs": "^0.0.1-security",
     "get-file-properties": "^1.0.1",
