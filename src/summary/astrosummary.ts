@@ -19,11 +19,19 @@ function readNotes(folder: string): string | undefined {
 	return notes;
 }
 
-function summarizeTarget(targetName: string, targetDirectory: string): Target | undefined {
+function summarizeTarget(targetName: string, targetDirectory: string): Target[] {
 	const targetNotes = readNotes(targetDirectory);
-	const dateSubdirectories = getSubdirectories(targetDirectory).filter(s => dateFormat.test(s));
+	const targetSubdirectories = getSubdirectories(targetDirectory);
+	const dateSubdirectories = targetSubdirectories.filter(s => dateFormat.test(s));
 	if(dateSubdirectories.length === 0) {
-		return undefined;
+		// console.log(`Deep diving into ${targetDirectory}`);
+		// Maybe it's a mosaic?
+		const panelSubdirectories = targetSubdirectories.filter(s => getSubdirectories(path.join(targetDirectory, s)).filter(t => dateFormat.test(t)).length > 0) ;
+		if(panelSubdirectories.length === 0) {
+			return [];
+		}
+
+		return panelSubdirectories.map(s => summarizeTarget(`${targetName} ${s}`, path.join(targetDirectory, s))).flatMap(t => t);
 	}
 	// console.log("Found some date directories:", dateSubdirectories.length);
 	const sessions: Session[] = []; 
@@ -56,11 +64,10 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target | 
 	const groupedSessions = Object.values(_.groupBy(sessions, s => `${s.exposureTime}:${s.filter}`));
 	const summary = groupedSessions.map(group => ({ exposureTime: group[0].exposureTime, filter: group[0].filter, totalCount: _.sumBy(group, "count") }));
 
-	return { target: targetName, notes: targetNotes, summary, sessions };
+	return [{ target: targetName, notes: targetNotes, summary, sessions }];
 }
 
 const doAsyncThings = async () => {
-	console.log("Running new code");
 	const currentWorkingDirectory = process.cwd();
 	// console.log(currentWorkingDirectory);
 
@@ -69,14 +76,14 @@ const doAsyncThings = async () => {
 
 	if(process.argv.includes("--target")) {
 		const target = summarizeTarget("Current", currentWorkingDirectory);
-		target && targets.push(target);
+		target && targets.push(...target);
 	}	else {
 		for(const directory of subdirectories) {
 		// console.log("Target name:", directory);
 
 			const targetDirectory = path.join(currentWorkingDirectory, directory);
 			const target = summarizeTarget(directory, targetDirectory);
-			target && targets.push(target);
+			target && targets.push(...target);
 		}
 	}
 
@@ -90,7 +97,8 @@ const doAsyncThings = async () => {
 			filter: config.filters[session.filter]?.astroBinFilterId, 
 			number: session.count, 
 			duration: session.exposureTime, 
-			sensorCooling: session.sensorTemperature
+			sensorCooling: session.sensorTemperature,
+			...config.additionalCsvFields
 		}));
 		console.log(stringify(mappedTargets, { header: true }));
 	} else {

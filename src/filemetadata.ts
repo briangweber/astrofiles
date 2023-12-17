@@ -14,6 +14,7 @@ export type FileMetadata = {
 
 export function getMetadataFromFile(filePath: string): FileMetadata {
 	const fileName = path.basename(filePath);
+	// console.log(fileName);
   
 	// get FITS keywords
 	const keywords = readKeywordsFromFile(filePath);
