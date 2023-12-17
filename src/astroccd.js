@@ -21,47 +21,66 @@ const doTheAsyncThings = async () => {
 
 	const { lightFiles, lightDirectory } = getLightFiles(currentWorkingDirectory);
 
-	const metadata = lightFiles?.[0] ? getMetadataFromFile(path.join(lightDirectory, lightFiles[0])) : {}; 
-	
-	let { camera, exposureTime, filter } = await prompt.get({ 
+	const metadataGroups = lightFiles.reduce((prev,l) => {
+		const metadata = getMetadataFromFile(path.join(lightDirectory, l)); 
+		const key = `${metadata.exposureTime}-${metadata.filter}-${metadata.temperature}`;
+		prev[key] = prev[key] || [];
+		prev[key].push(metadata);
+		return prev;
+	}, {});
+	console.log(metadataGroups);
+	const metadata = Object.values(metadataGroups).map(value => ({ filter: value[0].filter, temperature: value[0].temperature, exposureTime: value[0].exposureTime, count: value.length}));
+
+	let { camera } = await prompt.get({ 
 		properties: { 
-			exposureTime: { default: metadata.exposureTime }, 
-			filter: { default: metadata.filter }, 
 			camera: { description: "Camera", default: defaultCamera }
 		}
 	});
 
-	const { defaultGain, defaultOffset, defaultTemperature, filters } = config.cameras[camera];
-	let { gain, offset, temperature } = await prompt.get({ 
+	const { defaultGain, defaultOffset, filters } = config.cameras[camera];
+	let { gain, offset } = await prompt.get({ 
 		properties: { 
-			gain: { default: metadata.gain || defaultGain }, 
-			offset: { default: metadata.offset || defaultOffset}, 
-			temperature: { default: metadata.temperature || defaultTemperature } 
+			gain: { default: defaultGain }, 
+			offset: { default: defaultOffset}, 
 		}
 	});
 
-	const darkFlatExposureTime = filters[filter].darkFlatDuration;
+	// const darkFlatExposureTime = filters[filter].darkFlatDuration;
 
 	const basePath = path.join(config.sharedCalibrationRoot, camera);
 
-	const exposureTimeString = `${exposureTime}s`;
+	// const exposureTimeString = `${exposureTime}s`;
 	const gainAndOffset = `g${gain}o${offset}`;
-	const temperatureString = `${temperature}C`;
 	const biasFilePath = path.join("biases", `masterBias_${gainAndOffset}.xisf`);
-	const darkFilePath = path.join("darks", `masterDark_${gainAndOffset}_${exposureTimeString}_${temperatureString}.xisf`);
-	const darkFlatFilePath = path.join("darkFlats", `masterDarkFlat_${gainAndOffset}_${darkFlatExposureTime}s.xisf`);
+	// const darkFilePath = path.join("darks", `masterDark_${gainAndOffset}_${exposureTimeString}_${temperatureString}.xisf`);
+	// const darkFlatFilePath = path.join("darkFlats", `masterDarkFlat_${gainAndOffset}_${darkFlatExposureTime}s.xisf`);
+
+	const darkFilePaths = [];
+	const darkFlatFilePaths = [];
+
+	metadata.forEach(m => {
+		const exposureTimeString = `${m.exposureTime}s`;
+		const temperatureString = `${m.temperature}C`;
+		const darkFlatExposureTime = filters[m.filter].darkFlatDuration;
+		const darkFilePath = path.join("darks", `masterDark_${gainAndOffset}_${exposureTimeString}_${temperatureString}.xisf`);
+		const darkFlatFilePath = path.join("darkFlats", `masterDarkFlat_${gainAndOffset}_${darkFlatExposureTime}s.xisf`);
+
+		darkFilePaths.push(darkFilePath);
+		!darkFlatFilePaths.includes(darkFlatFilePath) && darkFlatFilePaths.push(darkFlatFilePath);
+	});
 
 	const directoriesToRename = [
-		{ original: "Bias", new: "biases", libraryFilePath: biasFilePath },
+		{ original: "Bias", new: "biases", libraryFilePaths: [biasFilePath] },
 		{ original: "Light", new: "lights", dssName: "light", applyFilter: true },
-		{ original: "Dark", new: "darks", dssName: "dark", libraryFilePath: darkFilePath },
+		{ original: "Dark", new: "darks", dssName: "dark", libraryFilePaths: darkFilePaths },
 		{ original: "Flat", new: "flats", dssName: "flat", applyFilter: true },
-		{ original: "DarkFlat", new: "darkFlats", libraryFilePath: darkFlatFilePath },
+		{ original: "DarkFlat", new: "darkFlats", libraryFilePaths: darkFlatFilePaths },
 	];
 
 	console.log(biasFilePath);
-	console.log(darkFilePath);
-	console.log(darkFlatFilePath);
+	console.log(darkFilePaths);
+	console.log(darkFlatFilePaths);
+	console.log(metadata);
 
 	for(const directoryData of directoriesToRename) {
 		if(directoryData.original && fs.existsSync(directoryData.original)) {
@@ -69,7 +88,7 @@ const doTheAsyncThings = async () => {
 		}
 
 		if(directoryData.original && !fs.existsSync(directoryData.new)) {
-			if(directoryData.libraryFilePath) {
+			if(directoryData.libraryFilePaths) {
 				tryLinkLibraryCalibration(basePath, directoryData);
 			} else {
 				tryLinkSharedCalibration(currentDirectoryName, directoryData);
@@ -89,10 +108,10 @@ const doTheAsyncThings = async () => {
 					console.log(newFileName); 
 				}
 
-				if(directoryData.applyFilter && filter && !filterAlreadyUpdatedFileFormat.test(fileName)) {
-					newFileName = newFileName.replace(`.${extension}`, `_FILTER_${filter}.${extension}`);
-					console.log(newFileName);
-				}
+				// if(directoryData.applyFilter && filter && !filterAlreadyUpdatedFileFormat.test(fileName)) {
+				// 	newFileName = newFileName.replace(`.${extension}`, `_FILTER_${filter}.${extension}`);
+				// 	console.log(newFileName);
+				// }
 
 				newFileName = newFileName.replace(/'/g, "");
 
