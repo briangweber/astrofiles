@@ -7,7 +7,7 @@ type DirectoryData = {
 	new: string;
 	dssName?: string;
 	applyFilter?: boolean;
-	libraryFilePaths: string[];
+	libraryFilePaths?: string[];
 }
 
 export const tryLinkSharedCalibration = (currentDirectoryName:string, directoryData: DirectoryData) => {
@@ -19,10 +19,10 @@ export const tryLinkSharedCalibration = (currentDirectoryName:string, directoryD
 };
 
 export const  tryLinkLibraryCalibration = (calibrationBasePath: string, directoryData: DirectoryData) => {
-	const paths = directoryData.libraryFilePaths.map(p => { 
+	const paths = directoryData.libraryFilePaths?.map(p => { 
 		const calibrationPath = path.join(calibrationBasePath, p);
 		return { calibrationPath: calibrationPath, destination: p, valid: fs.existsSync(calibrationPath) };
-	});
+	}) || [];
 
 	if(!paths.filter(p => p.valid).length) {
 		console.log("No matching calibration files found. Checked: ", paths.join(", "));

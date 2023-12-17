@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import prompt from "prompt";
 import config from "../config";
-import { getMetadataFromFile } from "./filemetadata";
+import { FileMetadata, getMetadataFromFile } from "./filemetadata";
 import { getLightFiles } from "./helpers";
 import { tryLinkSharedCalibration, tryLinkLibraryCalibration } from "./linkcommon";
 
@@ -21,24 +21,36 @@ const doTheAsyncThings = async () => {
 
 	const { lightFiles, lightDirectory } = getLightFiles(currentWorkingDirectory);
 
+	if(!lightDirectory) {
+		console.log("No light directory found!");
+		return;
+	}
+
 	const metadataGroups = lightFiles.reduce((prev,l) => {
 		const metadata = getMetadataFromFile(path.join(lightDirectory, l)); 
 		const key = `${metadata.exposureTime}-${metadata.filter}-${metadata.temperature}`;
 		prev[key] = prev[key] || [];
 		prev[key].push(metadata);
 		return prev;
-	}, {});
+	}, {} as Record<string, FileMetadata[]>);
 	console.log(metadataGroups);
-	const metadata = Object.values(metadataGroups).map(value => ({ filter: value[0].filter, temperature: value[0].temperature, exposureTime: value[0].exposureTime, count: value.length}));
+	const metadata = Object.values(metadataGroups).map(value => ({ filter: value[0].filter || "", temperature: value[0].temperature, exposureTime: value[0].exposureTime, count: value.length}));
 
-	let { camera } = await prompt.get({ 
+	const { camera } = await prompt.get({ 
 		properties: { 
 			camera: { description: "Camera", default: defaultCamera }
 		}
 	});
 
-	const { defaultGain, defaultOffset, filters } = config.cameras[camera];
-	let { gain, offset } = await prompt.get({ 
+	if(typeof(camera) !== "string" || config.cameras[camera] === undefined) {
+		console.log("Camera does not match any known configurations:", camera);
+		return;
+	}
+
+	// We ensured we found a match for the camera above.
+	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+	const { defaultGain, defaultOffset, filters } = config.cameras[camera]!;
+	const { gain, offset } = await prompt.get({ 
 		properties: { 
 			gain: { default: defaultGain }, 
 			offset: { default: defaultOffset}, 
@@ -55,13 +67,13 @@ const doTheAsyncThings = async () => {
 	// const darkFilePath = path.join("darks", `masterDark_${gainAndOffset}_${exposureTimeString}_${temperatureString}.xisf`);
 	// const darkFlatFilePath = path.join("darkFlats", `masterDarkFlat_${gainAndOffset}_${darkFlatExposureTime}s.xisf`);
 
-	const darkFilePaths = [];
-	const darkFlatFilePaths = [];
+	const darkFilePaths: string[] = [];
+	const darkFlatFilePaths: string[] = [];
 
 	metadata.forEach(m => {
 		const exposureTimeString = `${m.exposureTime}s`;
 		const temperatureString = `${m.temperature}C`;
-		const darkFlatExposureTime = filters[m.filter].darkFlatDuration;
+		const darkFlatExposureTime = (filters as any)[m.filter].darkFlatDuration;
 		const darkFilePath = path.join("darks", `masterDark_${gainAndOffset}_${exposureTimeString}_${temperatureString}.xisf`);
 		const darkFlatFilePath = path.join("darkFlats", `masterDarkFlat_${gainAndOffset}_${darkFlatExposureTime}s.xisf`);
 
