@@ -8,19 +8,44 @@ import { getMetadataFromFile } from "../filemetadata";
 import { getLightFiles, getSubdirectories } from "../helpers";
 import {stringify} from "csv-stringify/sync";
 
-type Target = { target:string; notes?: string; summary: any[]; sessions: Session[] };
+type Tag = { key: string, value: string};
+
+type Target = { target:string; notes?: string; summary: any[]; sessions: Session[], tags: Tag[], hasDataSinceLastPublish?: boolean };
 type Session = { date: string, exposureTime: number, sensorTemperature?: number, filter: string, count: number, notes?: string };
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
 
-function readNotes(folder: string): string | undefined {
+function readNotes(folder: string): { notes: string | undefined; tags: Tag[] } {
 	const notesPath = path.join(folder, "notes.txt");
-	const notes = fs.existsSync(notesPath) ? fs.readFileSync(notesPath, { encoding: "utf-8" }) : undefined;
-	return notes;
+	let notes = fs.existsSync(notesPath) ? fs.readFileSync(notesPath, { encoding: "utf-8" }) : undefined;
+	const tagString = notes?.match(/tags:(.*)/);
+	let tags: Tag[] = [];
+	if(tagString?.length) {
+		const [,rawTags] = tagString;
+		notes = notes?.replace(`tags:${rawTags}`, "").trim();
+		// console.log(rawTags);
+		const parsedTags = rawTags.split(";").map(t => {
+			const [key, value = ""] = t.split(":");
+			return { key, value};
+		});
+		tags = parsedTags;
+	}
+	return { notes, tags };
+}
+
+function getLastPublishedDate(tags: Tag[]): string | undefined {
+	const publishedTags = tags.filter(t => t.key === "published");
+	if(!publishedTags.length) {
+		return undefined;
+	}
+
+	// Get the latest published date
+	return publishedTags.sort().at(-1)?.value;
 }
 
 function summarizeTarget(targetName: string, targetDirectory: string): Target[] {
-	const targetNotes = readNotes(targetDirectory);
+	const { notes: targetNotes, tags: targetTags } = readNotes(targetDirectory);
+	const lastPublishedDate = getLastPublishedDate(targetTags);
 	const targetSubdirectories = getSubdirectories(targetDirectory);
 	const dateSubdirectories = targetSubdirectories.filter(s => dateFormat.test(s));
 	if(dateSubdirectories.length === 0) {
@@ -38,7 +63,7 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 	for(const dateDirectory of dateSubdirectories) {
 		const datePath = path.join(targetDirectory, dateDirectory);
 
-		const dateNotes = readNotes(datePath);
+		const { notes: dateNotes} = readNotes(datePath);
 
 		const { lightFiles, lightDirectory } = getLightFiles(datePath);
 		const lightFile = lightFiles?.[0];
@@ -63,8 +88,9 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 
 	const groupedSessions = Object.values(_.groupBy(sessions, s => `${s.exposureTime}:${s.filter}`));
 	const summary = groupedSessions.map(group => ({ exposureTime: group[0].exposureTime, filter: group[0].filter, totalCount: _.sumBy(group, "count") }));
+	const hasDataSinceLastPublish = lastPublishedDate ?  sessions.filter(s => s.date > lastPublishedDate).length > 0 : true;
 
-	return [{ target: targetName, notes: targetNotes, summary, sessions }];
+	return [{ target: targetName, notes: targetNotes, tags: targetTags, hasDataSinceLastPublish, summary, sessions }];
 }
 
 const doAsyncThings = async () => {
