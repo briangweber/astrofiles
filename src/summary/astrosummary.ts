@@ -77,6 +77,7 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 			date: dateDirectory, 
 			exposureTime: group[0].exposureTime || -1, 
 			filter: group[0].filter || "None", 
+			isDslr: lightFiles[0].endsWith(".cr2"),
 			sensorTemperature: group[0].temperature,
 			count: group.length,
 			notes: dateNotes 
