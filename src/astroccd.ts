@@ -7,6 +7,7 @@ import config from "../config";
 import { FileMetadata, getMetadataFromFile } from "./filemetadata";
 import { getLightFiles } from "./helpers";
 import { tryLinkSharedCalibration, tryLinkLibraryCalibration } from "./linkcommon";
+import { FsOps } from "./fsops";
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
 const sessionAlreadyUpdatedFileFormat = /.*SESSION_.*/;
@@ -16,50 +17,54 @@ const currentWorkingDirectory = process.cwd();
 const currentDirectoryName = path.parse(currentWorkingDirectory).name;
 console.log(currentDirectoryName);
 
+const isDryRun = process.argv.includes("--dry-run");
+const fsOps = new FsOps(isDryRun);
+
 const doTheAsyncThings = async () => {
 	const defaultCamera = Object.keys(config.cameras)[0];
 
 	const { lightFiles, lightDirectory } = getLightFiles(currentWorkingDirectory);
 
-	if(!lightDirectory) {
+	if (!lightDirectory) {
 		console.log("No light directory found!");
 		return;
 	}
 
-	const metadataGroups = lightFiles.reduce((prev,l) => {
-		const metadata = getMetadataFromFile(path.join(lightDirectory, l)); 
+	const metadataGroups = lightFiles.reduce((prev, l) => {
+		const metadata = getMetadataFromFile(path.join(lightDirectory, l));
 		const key = `${metadata.exposureTime}-${metadata.filter}-${metadata.temperature}`;
 		prev[key] = prev[key] || [];
 		prev[key].push(metadata);
 		return prev;
 	}, {} as Record<string, FileMetadata[]>);
-	console.log(metadataGroups);
-	const metadata = Object.values(metadataGroups).map(value => ({ filter: value[0].filter || "", temperature: value[0].temperature, exposureTime: value[0].exposureTime, count: value.length}));
+	// console.log(metadataGroups);
+	const metadata = Object.values(metadataGroups).map(value => ({ filter: value[0].filter || "", temperature: value[0].temperature, exposureTime: value[0].exposureTime, count: value.length }));
 
-	const { camera } = await prompt.get({ 
-		properties: { 
+	const { camera } = await prompt.get({
+		properties: {
 			camera: { description: "Camera", default: defaultCamera }
 		}
 	});
 
-	if(typeof(camera) !== "string" || config.cameras[camera] === undefined) {
+	if (typeof (camera) !== "string" || config.cameras[camera] === undefined) {
 		console.log("Camera does not match any known configurations:", camera);
 		return;
 	}
 
 	// We ensured we found a match for the camera above.
 	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-	const { defaultGain, defaultOffset, filters } = config.cameras[camera]!;
-	const { gain, offset } = await prompt.get({ 
-		properties: { 
-			gain: { default: defaultGain }, 
-			offset: { default: defaultOffset}, 
+	const { defaultGain, defaultOffset, filters, sharedCalibrationRoot: cameraCalibrationRoot } = config.cameras[camera]!;
+	const { gain, offset } = await prompt.get({
+		properties: {
+			gain: { default: defaultGain },
+			offset: { default: defaultOffset },
 		}
 	});
 
 	// const darkFlatExposureTime = filters[filter].darkFlatDuration;
 
-	const basePath = path.join(config.sharedCalibrationRoot, camera);
+	const sharedCalibrationRoot = cameraCalibrationRoot || config.sharedCalibrationRoot;
+	const basePath = path.join(sharedCalibrationRoot, camera);
 
 	// const exposureTimeString = `${exposureTime}s`;
 	const gainAndOffset = `g${gain}o${offset}`;
@@ -94,30 +99,30 @@ const doTheAsyncThings = async () => {
 	console.log(darkFlatFilePaths);
 	console.log(metadata);
 
-	for(const directoryData of directoriesToRename) {
-		if(directoryData.original && fs.existsSync(directoryData.original)) {
-			fs.renameSync(directoryData.original, directoryData.new);
+	for (const directoryData of directoriesToRename) {
+		if (directoryData.original && fs.existsSync(directoryData.original)) {
+			fsOps.renameSync(directoryData.original, directoryData.new);
 		}
 
-		if(directoryData.original && !fs.existsSync(directoryData.new)) {
-			if(directoryData.libraryFilePaths) {
-				tryLinkLibraryCalibration(basePath, directoryData);
+		if (directoryData.original && !fs.existsSync(directoryData.new)) {
+			if (directoryData.libraryFilePaths) {
+				tryLinkLibraryCalibration(basePath, directoryData, fsOps);
 			} else {
-				tryLinkSharedCalibration(currentDirectoryName, directoryData);
+				tryLinkSharedCalibration(currentDirectoryName, directoryData, fsOps);
 			}
 		}
 
-		if(fs.existsSync(directoryData.new)) {
+		if (fs.existsSync(directoryData.new)) {
 			const files = fs.readdirSync(directoryData.new);
 			// let directory = `.\\${directoryData.new}`;
 			// console.log(directory);
-			for(let fileName of files) {
+			for (let fileName of files) {
 				let newFileName = fileName;
 				const extension = newFileName.split(".").pop();
 
-				if(!sessionAlreadyUpdatedFileFormat.test(fileName) && dateFormat.test(currentDirectoryName)) {
+				if (!sessionAlreadyUpdatedFileFormat.test(fileName) && dateFormat.test(currentDirectoryName)) {
 					newFileName = newFileName.replace(`.${extension}`, `_SESSION_${currentDirectoryName}.${extension}`);
-					console.log(newFileName); 
+					console.log(newFileName);
 				}
 
 				// if(directoryData.applyFilter && filter && !filterAlreadyUpdatedFileFormat.test(fileName)) {
@@ -127,9 +132,9 @@ const doTheAsyncThings = async () => {
 
 				newFileName = newFileName.replace(/'/g, "");
 
-				if(newFileName !== fileName) {
+				if (newFileName !== fileName) {
 					const directoryOfFile = path.join(currentWorkingDirectory, directoryData.new);
-					fs.renameSync(path.join(directoryOfFile, fileName), path.join(directoryOfFile, newFileName));
+					fsOps.renameSync(path.join(directoryOfFile, fileName), path.join(directoryOfFile, newFileName));
 					fileName = newFileName;
 				}
 			}
