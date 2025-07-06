@@ -4,10 +4,10 @@ import { getNumericKeyword, readKeywordsFromFile } from "./fits/keywordreader";
 import { parseNumber } from "./helpers";
 
 export type FileMetadata = {
-  exposureTime?: number;
-  temperature?: number;
-  filter?: string;
-  date?: string;
+	exposureTime?: number;
+	temperature?: number;
+	filter?: string;
+	date?: string;
 	gain?: number;
 	offset?: number;
 }
@@ -15,7 +15,7 @@ export type FileMetadata = {
 export function getMetadataFromFile(filePath: string): FileMetadata {
 	const fileName = path.basename(filePath);
 	// console.log(fileName);
-  
+
 	// get FITS keywords
 	const keywords = readKeywordsFromFile(filePath);
 
@@ -44,7 +44,7 @@ function getFileKeyword(fileName: string, keywordToFind: string): string | undef
 }
 
 function getExposureTimeKeyword(fileName: string): number | undefined {
-	const value = /.*_([0-9.]*)(?:s|_secs| s)_.*/ig.exec(fileName)?.[1];
+	const value = /.*_([0-9.]+)(?:s|_secs| s)_.*/g.exec(fileName)?.[1];
 	return parseNumber(value, true);
 }
 
