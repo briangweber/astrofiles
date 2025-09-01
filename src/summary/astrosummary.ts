@@ -45,6 +45,7 @@ function getLastPublishedDate(tags: Tag[]): string | undefined {
 
 function summarizeTarget(targetName: string, targetDirectory: string): Target[] {
 	const { notes: targetNotes, tags: targetTags } = readNotes(targetDirectory);
+	const cameraFromTargetTags = targetTags.find(t => t.key === "camera")?.value;
 	const lastPublishedDate = getLastPublishedDate(targetTags);
 	const targetSubdirectories = getSubdirectories(targetDirectory);
 	const dateSubdirectories = targetSubdirectories.filter(s => dateFormat.test(s));
@@ -63,7 +64,8 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 	for (const dateDirectory of dateSubdirectories) {
 		const datePath = path.join(targetDirectory, dateDirectory);
 
-		const { notes: dateNotes } = readNotes(datePath);
+		const { notes: dateNotes, tags: dateTags } = readNotes(datePath);
+		const cameraFromDateTags = dateTags.find(k => k.key === "camera")?.value;
 
 		const { lightFiles, lightDirectory } = getLightFiles(datePath);
 		const lightFile = lightFiles?.[0];
@@ -77,7 +79,7 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 			date: dateDirectory,
 			exposureTime: group[0].exposureTime || -1,
 			filter: group[0].filter || "None",
-			camera: group[0].camera,
+			camera: group[0].camera ?? cameraFromDateTags ?? cameraFromTargetTags ?? config.defaultCamera,
 			isDslr: lightFiles[0].endsWith(".cr2"),
 			sensorTemperature: group[0].temperature,
 			count: group.length,
