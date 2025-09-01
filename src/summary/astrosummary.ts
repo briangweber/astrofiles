@@ -11,7 +11,9 @@ import { stringify } from "csv-stringify/sync";
 type Tag = { key: string, value: string };
 
 type Target = { target: string; notes?: string; summary: any[]; sessions: Session[], tags: Tag[], hasDataSinceLastPublish?: boolean };
-type Session = { date: string, exposureTime: number, sensorTemperature?: number, filter: string, count: number, notes?: string };
+type Session = { date: string, exposureTime: number, sensorTemperature?: number, filter: string, camera: string, count: number, notes?: string };
+
+type SessionFilters = { camera?: string; }
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
 
@@ -43,7 +45,7 @@ function getLastPublishedDate(tags: Tag[]): string | undefined {
 	return publishedTags.sort().at(-1)?.value;
 }
 
-function summarizeTarget(targetName: string, targetDirectory: string): Target[] {
+function summarizeTarget(targetName: string, targetDirectory: string, sessionFilters: SessionFilters): Target[] {
 	const { notes: targetNotes, tags: targetTags } = readNotes(targetDirectory);
 	const cameraFromTargetTags = targetTags.find(t => t.key === "camera")?.value;
 	const lastPublishedDate = getLastPublishedDate(targetTags);
@@ -57,7 +59,7 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 			return [];
 		}
 
-		return panelSubdirectories.map(s => summarizeTarget(`${targetName} ${s}`, path.join(targetDirectory, s))).flatMap(t => t);
+		return panelSubdirectories.map(s => summarizeTarget(`${targetName} ${s}`, path.join(targetDirectory, s), sessionFilters)).flatMap(t => t);
 	}
 	// console.log("Found some date directories:", dateSubdirectories.length);
 	const sessions: Session[] = [];
@@ -75,7 +77,7 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 
 		const fileMetadatas = lightFiles.map(f => getMetadataFromFile(path.join(datePath, lightDirectory, f)));
 		const groupedFiles = Object.values(_.groupBy(fileMetadatas, f => `${f.exposureTime}:${f.filter}`));
-		const subsessions: Session[] = groupedFiles.map(group => ({
+		let subsessions: Session[] = groupedFiles.map(group => ({
 			date: dateDirectory,
 			exposureTime: group[0].exposureTime || -1,
 			filter: group[0].filter || "None",
@@ -86,6 +88,9 @@ function summarizeTarget(targetName: string, targetDirectory: string): Target[] 
 			notes: dateNotes
 		}));
 		// subsessions.length > 1 && console.log("Found subsessions:", targetDirectory, dateDirectory);
+		if (sessionFilters?.camera) {
+			subsessions = subsessions.filter(s => s.camera === sessionFilters.camera);
+		}
 
 		subsessions.length > 0 && sessions.push(...subsessions);
 	}
@@ -104,15 +109,21 @@ const doAsyncThings = async () => {
 	const subdirectories = getSubdirectories(currentWorkingDirectory);
 	const targets: Target[] = [];
 
+	const filters: SessionFilters = {};
+	const cameraFilterArg = process.argv.find(a => a.startsWith("--camera="));
+	if (cameraFilterArg) {
+		filters.camera = cameraFilterArg.replace("--camera=", "");
+	}
+
 	if (process.argv.includes("--target")) {
-		const target = summarizeTarget("Current", currentWorkingDirectory);
+		const target = summarizeTarget("Current", currentWorkingDirectory, filters);
 		target && targets.push(...target);
 	} else {
 		for (const directory of subdirectories) {
 			// console.log("Target name:", directory);
 
 			const targetDirectory = path.join(currentWorkingDirectory, directory);
-			const target = summarizeTarget(directory, targetDirectory);
+			const target = summarizeTarget(directory, targetDirectory, filters);
 			target && targets.push(...target);
 		}
 	}
