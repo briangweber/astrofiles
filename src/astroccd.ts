@@ -10,8 +10,9 @@ import { tryLinkSharedCalibration, tryLinkLibraryCalibration } from "./linkcommo
 import { FsOps } from "./fsops";
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
-const sessionAlreadyUpdatedFileFormat = /.*SESSION_.*/;
+const sessionAlreadyUpdatedFileFormat = /.*_SESSION_.*/;
 const filterAlreadyUpdatedFileFormat = /.*FILTER_.*/;
+const cameraAlreadyUpdateFileFormat = /.*_CAM_.*?_/;
 
 const currentWorkingDirectory = process.cwd();
 const currentDirectoryName = path.parse(currentWorkingDirectory).name;
@@ -21,7 +22,7 @@ const isDryRun = process.argv.includes("--dry-run");
 const fsOps = new FsOps(isDryRun);
 
 const doTheAsyncThings = async () => {
-	const defaultCamera = Object.keys(config.cameras)[0];
+	const defaultCamera = config.defaultCamera || Object.keys(config.cameras)[0];
 
 	const { lightFiles, lightDirectory } = getLightFiles(currentWorkingDirectory);
 
@@ -38,11 +39,11 @@ const doTheAsyncThings = async () => {
 		return prev;
 	}, {} as Record<string, FileMetadata[]>);
 	// console.log(metadataGroups);
-	const metadata = Object.values(metadataGroups).map(value => ({ filter: value[0].filter || "", temperature: value[0].temperature, exposureTime: value[0].exposureTime, count: value.length }));
+	const metadata = Object.values(metadataGroups).map(value => ({ camera: value[0].camera || "", filter: value[0].filter || "", temperature: value[0].temperature, exposureTime: value[0].exposureTime, count: value.length }));
 
 	const { camera } = await prompt.get({
 		properties: {
-			camera: { description: "Camera", default: defaultCamera }
+			camera: { description: "Camera", default: metadata[0]?.camera || defaultCamera }
 		}
 	});
 
@@ -88,7 +89,7 @@ const doTheAsyncThings = async () => {
 
 	const directoriesToRename = [
 		{ original: "Bias", new: "biases", libraryFilePaths: [biasFilePath] },
-		{ original: "Light", new: "lights", dssName: "light", applyFilter: true },
+		{ original: "Light", new: "lights", dssName: "light", applyFilter: true, applyCamera: true },
 		{ original: "Dark", new: "darks", dssName: "dark", libraryFilePaths: darkFilePaths },
 		{ original: "Flat", new: "flats", dssName: "flat", applyFilter: true },
 		{ original: "DarkFlat", new: "darkFlats", libraryFilePaths: darkFlatFilePaths },
@@ -122,7 +123,10 @@ const doTheAsyncThings = async () => {
 
 				if (!sessionAlreadyUpdatedFileFormat.test(fileName) && dateFormat.test(currentDirectoryName)) {
 					newFileName = newFileName.replace(`.${extension}`, `_SESSION_${currentDirectoryName}.${extension}`);
-					console.log(newFileName);
+				}
+
+				if (!cameraAlreadyUpdateFileFormat.test(fileName) && camera && directoryData.applyCamera) {
+					newFileName = newFileName.replace(`.${extension}`, `_CAM_${camera}.${extension}`);
 				}
 
 				// if(directoryData.applyFilter && filter && !filterAlreadyUpdatedFileFormat.test(fileName)) {
@@ -136,6 +140,7 @@ const doTheAsyncThings = async () => {
 					const directoryOfFile = path.join(currentWorkingDirectory, directoryData.new);
 					fsOps.renameSync(path.join(directoryOfFile, fileName), path.join(directoryOfFile, newFileName));
 					fileName = newFileName;
+					console.log(newFileName);
 				}
 			}
 		} else {

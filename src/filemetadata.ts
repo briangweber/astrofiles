@@ -4,6 +4,7 @@ import { getNumericKeyword, readKeywordsFromFile } from "./fits/keywordreader";
 import { parseNumber } from "./helpers";
 
 export type FileMetadata = {
+	camera?: string;
 	exposureTime?: number;
 	temperature?: number;
 	filter?: string;
@@ -31,7 +32,8 @@ export function getMetadataFromFile(filePath: string): FileMetadata {
 		exposureTime: getExposureTimeKeyword(fileName),
 		temperature: getNumericFileKeyword(fileName, "TEMP"),
 		filter: getFileKeyword(fileName, "FILTER"),
-		date: getFileKeyword(fileName, "SESSION")
+		date: getFileKeyword(fileName, "SESSION"),
+		camera: getFileKeyword(fileName, "CAM"),
 	};
 
 	const resolved = _.defaults(fileMetadata, keywordMetadata);

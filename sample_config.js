@@ -3,6 +3,7 @@
 module.exports = {
 	biasRoot: "D:/astrophotography/biases",
 	sharedCalibrationRoot: "D:/astrophotography/_shared",
+	defaultCamera: "168C",
 	cameras: {
 		"168C": {
 			defaultGain: 10,
