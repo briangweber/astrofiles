@@ -99,7 +99,7 @@ function summarizeTarget(targetName: string, targetDirectory: string, sessionFil
 	const summary = groupedSessions.map(group => ({ exposureTime: group[0].exposureTime, filter: group[0].filter, totalCount: _.sumBy(group, "count") }));
 	const hasDataSinceLastPublish = lastPublishedDate ? sessions.filter(s => s.date > lastPublishedDate).length > 0 : true;
 
-	return [{ target: targetName, notes: targetNotes, tags: targetTags, hasDataSinceLastPublish, summary, sessions }];
+	return sessions.length ? [{ target: targetName, notes: targetNotes, tags: targetTags, hasDataSinceLastPublish, summary, sessions }] : [];
 }
 
 const doAsyncThings = async () => {
