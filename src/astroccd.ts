@@ -8,10 +8,11 @@ import { FileMetadata, getMetadataFromFile } from "./filemetadata";
 import { getLightFiles } from "./helpers";
 import { tryLinkSharedCalibration, tryLinkLibraryCalibration } from "./linkcommon";
 import { FsOps } from "./fsops";
+import { Dictionary } from "lodash";
 
 const dateFormat = /[0-9]{4}-[0-9]{2}-[0-9]{2}/;
 const sessionAlreadyUpdatedFileFormat = /.*_SESSION_.*/;
-const filterAlreadyUpdatedFileFormat = /.*FILTER_.*/;
+const filterAlreadyUpdatedFileFormat = /.*FILTER_(.*?)_/;
 const cameraAlreadyUpdateFileFormat = /.*_CAM_.*?_/;
 
 const currentWorkingDirectory = process.cwd();
@@ -87,9 +88,10 @@ const doTheAsyncThings = async () => {
 		!darkFlatFilePaths.includes(darkFlatFilePath) && darkFlatFilePaths.push(darkFlatFilePath);
 	});
 
+	// Lights have to go first to collect the list of filters
 	const directoriesToRename = [
-		{ original: "Bias", new: "biases", libraryFilePaths: [biasFilePath] },
 		{ original: "Light", new: "lights", dssName: "light", applyFilter: true, applyCamera: true },
+		{ original: "Bias", new: "biases", libraryFilePaths: [biasFilePath] },
 		{ original: "Dark", new: "darks", dssName: "dark", libraryFilePaths: darkFilePaths },
 		{ original: "Flat", new: "flats", dssName: "flat", applyFilter: true },
 		{ original: "DarkFlat", new: "darkFlats", libraryFilePaths: darkFlatFilePaths },
@@ -100,16 +102,21 @@ const doTheAsyncThings = async () => {
 	console.log(darkFlatFilePaths);
 	console.log(metadata);
 
+	const filtersUsed: Dictionary<string> = {};
+
 	for (const directoryData of directoriesToRename) {
 		if (directoryData.original && fs.existsSync(directoryData.original)) {
 			fsOps.renameSync(directoryData.original, directoryData.new);
 		}
 
+		// If calibration folders are not found locally, go find them
 		if (directoryData.original && !fs.existsSync(directoryData.new)) {
 			if (directoryData.libraryFilePaths) {
 				tryLinkLibraryCalibration(basePath, directoryData, fsOps);
 			} else {
-				tryLinkSharedCalibration(currentDirectoryName, directoryData, fsOps);
+				const filterList = Object.keys(filtersUsed);
+				console.log("Filters:", filterList.join(","));
+				tryLinkSharedCalibration(currentDirectoryName, directoryData, fsOps, camera, filterList);
 			}
 		}
 
@@ -129,10 +136,11 @@ const doTheAsyncThings = async () => {
 					newFileName = newFileName.replace(`.${extension}`, `_CAM_${camera}.${extension}`);
 				}
 
-				// if(directoryData.applyFilter && filter && !filterAlreadyUpdatedFileFormat.test(fileName)) {
-				// 	newFileName = newFileName.replace(`.${extension}`, `_FILTER_${filter}.${extension}`);
-				// 	console.log(newFileName);
-				// }
+				if (directoryData.new === "lights") {
+					const matches = filterAlreadyUpdatedFileFormat.exec(fileName);
+					const currentFilter = matches?.[1] || "";
+					filtersUsed[currentFilter] = "";
+				}
 
 				newFileName = newFileName.replace(/'/g, "");
 
