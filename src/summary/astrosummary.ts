@@ -139,7 +139,7 @@ const doAsyncThings = async () => {
 			number: session.count,
 			duration: session.exposureTime,
 			sensorCooling: session.sensorTemperature,
-			...config.additionalCsvFields
+			...(config.cameras?.[session.camera]?.additionalCsvFields || config.additionalCsvFields)
 		}));
 		console.log(stringify(mappedTargets, { header: true }));
 	} else {

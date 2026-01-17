@@ -1,6 +1,6 @@
 {
   "name": "@briangweber/astrofiles",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Do some basic file management to make life easier",
   "main": "index.js",
   "scripts": {
